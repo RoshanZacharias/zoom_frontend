@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Zoom Meeting</title>
+  <meta name="viewport" content="width=800, initial-scale=1.0" />
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 800px;
+      height: 500px;
+      overflow: hidden;
+      background: #fff;
+    }
+    #zmmtg-root {
+      width: 100% !important;
+      height: 100% !important;
+      position: static !important;
+      top: 0 !important;
+      left: 0 !important;
+    }
+  </style>
+  <!-- Zoom Meeting SDK CSS -->
+    <link type="text/css" rel="stylesheet" href="https://source.zoom.us/3.13.1/css/bootstrap.css" />
+    <link type="text/css" rel="stylesheet" href="https://source.zoom.us/3.13.1/css/react-select.css" />
+</head>
+<body>
+  <div id="zmmtg-root"></div>
+    <script src="https://source.zoom.us/3.13.1/lib/vendor/react.min.js"></script>
+    <script src="https://source.zoom.us/3.13.1/lib/vendor/react-dom.min.js"></script>
+    <script src="https://source.zoom.us/3.13.1/lib/vendor/redux.min.js"></script>
+    <script src="https://source.zoom.us/3.13.1/lib/vendor/redux-thunk.min.js"></script>
+    <script src="https://source.zoom.us/3.13.1/lib/vendor/lodash.min.js"></script>
+    <script src="https://source.zoom.us/zoom-meeting-3.13.1.min.js"></script>
+  <script>
+
+    function getQueryParam(param) {
+    const urlParams = new URLSearchParams(window.location.search);
+    return urlParams.get(param);
+    }
+    // Replace these with your actual values or pass them via query params
+    const sdkKey = "3D5COVRdRCipU9s7JgfS7A";
+    const meetingNumber = "82906376883";
+    const passWord = "np8vuW";
+    const userName = getQueryParam("userName") || "Guest";
+    const role = parseInt(getQueryParam("role") || "0");
+    const leaveUrl = "http://localhost:5173";
+    
+
+    // Fetch signature from your backend
+    fetch('http://localhost:8000/zoom/generate-signature/', {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        meetingNumber: meetingNumber,
+        role: role,
+      }),
+    })
+    .then(res => res.json())
+    .then(({ signature }) => {
+      ZoomMtg.preLoadWasm();
+      ZoomMtg.prepareWebSDK();
+      ZoomMtg.init({
+        leaveUrl: leaveUrl,
+        patchJsMedia: true,
+        leaveOnPageUnload: true,
+        success: () => {
+          ZoomMtg.join({
+            signature: signature,
+            sdkKey: sdkKey,
+            meetingNumber: meetingNumber,
+            passWord: passWord,
+            userName: userName,
+            success: (success) => {
+              console.log(success);
+            },
+            error: (error) => {
+              console.log(error);
+            },
+          });
+        },
+        error: (error) => {
+          console.log(error);
+        },
+      });
+    });
+  </script>
+</body>
+</html>

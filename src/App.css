@@ -23,3 +23,14 @@ main button {
 main button:hover {
   background-color: #2681F2;
 }
+
+
+
+.zoom-embed {
+  width: 720px;
+  height: 550px;
+  margin: 50px 15px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
