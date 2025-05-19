@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Audio Capture Test</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+      line-height: 1.6;
+    }
+    
+    h1 {
+      color: #333;
+      border-bottom: 1px solid #ddd;
+      padding-bottom: 10px;
+    }
+    
+    .container {
+      background-color: #f9f9f9;
+      border-radius: 8px;
+      padding: 20px;
+      margin-top: 20px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    
+    .controls {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      margin-bottom: 20px;
+    }
+    
+    button {
+      padding: 10px 20px;
+      background-color: #0e71eb;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    
+    button:hover {
+      background-color: #0a5dc7;
+    }
+    
+    button.red {
+      background-color: #f44336;
+    }
+    
+    button.red:hover {
+      background-color: #d32f2f;
+    }
+    
+    .status {
+      padding: 10px;
+      background-color: #eee;
+      border-radius: 4px;
+      margin-bottom: 15px;
+    }
+    
+    .visualization {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    
+    .meter-container {
+      background-color: #333;
+      height: 20px;
+      border-radius: 10px;
+      overflow: hidden;
+      position: relative;
+    }
+    
+    .meter-level {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #3cb371, #4bdb91);
+      transition: width 0.1s ease;
+    }
+    
+    .meter-label {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 12px;
+      text-shadow: 0 0 2px #000;
+    }
+    
+    .log {
+      height: 200px;
+      overflow-y: auto;
+      background-color: #222;
+      color: #50fa7b;
+      font-family: monospace;
+      padding: 10px;
+      border-radius: 4px;
+      margin-top: 20px;
+    }
+    
+    .log p {
+      margin: 5px 0;
+    }
+    
+    .recording-indicator {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px;
+      background-color: #fff;
+      border-radius: 4px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    
+    .recording-dot {
+      width: 15px;
+      height: 15px;
+      border-radius: 50%;
+      background-color: #ccc;
+    }
+    
+    .recording-dot.active {
+      background-color: #f44336;
+      animation: pulse 1.5s infinite;
+    }
+    
+    @keyframes pulse {
+      0% { opacity: 1; }
+      50% { opacity: 0.5; }
+      100% { opacity: 1; }
+    }
+  </style>
+</head>
+<body>
+  <h1>Audio Capture Test</h1>
+  
+  <div class="container">
+    <h2>WebSocket Connection</h2>
+    <div class="controls">
+      <input type="text" id="websocket-url" value="ws://localhost:8000/ws/audio/" 
+             style="flex: 1; padding: 8px; border-radius: 4px; border: 1px solid #ddd;">
+      <button id="connect-button">Connect</button>
+    </div>
+    <div class="status" id="connection-status">Not connected</div>
+  </div>
+  
+  <div class="container">
+    <h2>Audio Capture</h2>
+    <div class="controls">
+      <button id="start-button">Start Recording</button>
+      <button id="stop-button" class="red" disabled>Stop Recording</button>
+    </div>
+    
+    <div class="recording-indicator">
+      <div class="recording-dot" id="recording-indicator"></div>
+      <span id="recording-status">Not recording</span>
+    </div>
+    
+    <h3>Audio Levels</h3>
+    <div class="visualization">
+      <div class="meter-container">
+        <div class="meter-level" id="audio-level"></div>
+        <div class="meter-label" id="audio-level-label">0%</div>
+      </div>
+    </div>
+    
+    <h3>Console Log</h3>
+    <div class="log" id="log"></div>
+  </div>
+  
+  <script type="module">
+    import AudioCapture from './AudioCapture.js';
+    
+    // Elements
+    const connectButton = document.getElementById('connect-button');
+    const startButton = document.getElementById('start-button');
+    const stopButton = document.getElementById('stop-button');
+    const websocketUrlInput = document.getElementById('websocket-url');
+    const connectionStatus = document.getElementById('connection-status');
+    const recordingStatus = document.getElementById('recording-status');
+    const recordingIndicator = document.getElementById('recording-indicator');
+    const audioLevel = document.getElementById('audio-level');
+    const audioLevelLabel = document.getElementById('audio-level-label');
+    const logElement = document.getElementById('log');
+    
+    // Audio capture instance
+    let audioCapture = null;
+    
+    // Connection states
+    const connectionStates = {
+      '-1': 'Not initialized',
+      '0': 'Connecting...',
+      '1': 'Connected',
+      '2': 'Closing...',
+      '3': 'Closed'
+    };
+    
+    // Add log entry
+    function log(message, type = 'info') {
+      const entry = document.createElement('p');
+      const timestamp = new Date().toLocaleTimeString();
+      entry.innerHTML = `<span style="color: #aaa;">[${timestamp}]</span> ${message}`;
+      
+      if (type === 'error') {
+        entry.style.color = '#ff5555';
+      } else if (type === 'success') {
+        entry.style.color = '#50fa7b';
+      } else if (type === 'warning') {
+        entry.style.color = '#ffb86c';
+      }
+      
+      logElement.appendChild(entry);
+      logElement.scrollTop = logElement.scrollHeight;
+    }
+    
+    // Update connection status display
+    function updateConnectionStatus() {
+      if (!audioCapture) {
+        connectionStatus.textContent = 'Not initialized';
+        return;
+      }
+      
+      const state = audioCapture.getConnectionState();
+      connectionStatus.textContent = connectionStates[state] || 'Unknown';
+      
+      // Update button states
+      if (state === 1) { // OPEN
+        startButton.disabled = false;
+        connectionStatus.style.backgroundColor = '#e8f5e9';
+      } else {
+        startButton.disabled = true;
+        connectionStatus.style.backgroundColor = '#ffebee';
+      }
+    }
+    
+    // Connect to WebSocket server
+    function connect() {
+      const url = websocketUrlInput.value.trim();
+      if (!url) {
+        log('Please enter a valid WebSocket URL', 'error');
+        return;
+      }
+      
+      // Disconnect existing connection if any
+      if (audioCapture) {
+        audioCapture.disconnect();
+        audioCapture = null;
+      }
+      
+      log(`Connecting to ${url}...`);
+      connectionStatus.textContent = 'Connecting...';
+      
+      try {
+        audioCapture = new AudioCapture(url);
+        
+        // Set up audio level visualization
+        audioCapture.setAudioLevelCallback((level) => {
+          audioLevel.style.width = `${level}%`;
+          audioLevelLabel.textContent = `${level}%`;
+        });
+        
+        // Update connection status immediately and then periodically
+        updateConnectionStatus();
+        setInterval(updateConnectionStatus, 1000);
+        
+        log('Audio capture initialized', 'success');
+      } catch (error) {
+        log(`Error initializing audio capture: ${error.message}`, 'error');
+      }
+    }
+    
+    // Start recording
+    async function startRecording() {
+      if (!audioCapture) {
+        log('Audio capture not initialized', 'error');
+        return;
+      }
+      
+      log('Starting audio recording...');
+      
+      try {
+        const success = await audioCapture.startRecording();
+        
+        if (success) {
+          startButton.disabled = true;
+          stopButton.disabled = false;
+          recordingStatus.textContent = 'Recording';
+          recordingIndicator.classList.add('active');
+          log('Audio recording started', 'success');
+        } else {
+          log('Failed to start audio recording', 'error');
+        }
+      } catch (error) {
+        log(`Error starting recording: ${error.message}`, 'error');
+      }
+    }
+    
+    // Stop recording
+    function stopRecording() {
+      if (!audioCapture) {
+        return;
+      }
+      
+      audioCapture.stopRecording();
+      startButton.disabled = false;
+      stopButton.disabled = true;
+      recordingStatus.textContent = 'Not recording';
+      recordingIndicator.classList.remove('active');
+      audioLevel.style.width = '0%';
+      audioLevelLabel.textContent = '0%';
+      
+      log('Audio recording stopped');
+    }
+    
+    // Set up event listeners
+    connectButton.addEventListener('click', connect);
+    startButton.addEventListener('click', startRecording);
+    stopButton.addEventListener('click', stopRecording);
+    
+    // Log initial message
+    log('Audio Capture Test initialized');
+    log('Connect to a WebSocket server to begin');
+  </script>
+</body>
+</html>

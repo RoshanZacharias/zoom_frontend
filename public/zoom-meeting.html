@@ -20,25 +20,194 @@
       top: 0 !important;
       left: 0 !important;
     }
+    
+    /* Audio capture indicator styles
+    .audio-controls {
+      position: absolute;
+      bottom: 20px;
+      left: 20px;
+      z-index: 10000;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: rgba(0, 0, 0, 0.6);
+      padding: 8px 12px;
+      border-radius: 6px;
+      color: white;
+      font-family: Arial, sans-serif;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    }
+    .audio-meter {
+      width: 100px;
+      height: 10px;
+      background: #333;
+      border-radius: 5px;
+      overflow: hidden;
+    }
+    .audio-level {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #3cb371, #4bdb91);
+      transition: width 0.1s ease;
+    }
+    .recording-indicator {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .recording-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background-color: #f44336;
+      display: none;
+    }
+    .recording-dot.active {
+      display: block;
+      animation: pulse 1.5s infinite;
+    }
+    @keyframes pulse {
+      0% { opacity: 1; }
+      50% { opacity: 0.5; }
+      100% { opacity: 1; }
+    }
+    .audio-button {
+      background: #0e71eb;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      padding: 5px 10px;
+      cursor: pointer;
+      font-size: 12px;
+    }
+    .audio-button:hover {
+      background: #0a5dc7;
+    }
+    .audio-button.stop {
+      background: #f44336;
+    }
+    .audio-button.stop:hover {
+      background: #d32f2f;
+    }
+    .connection-status {
+      font-size: 12px;
+      opacity: 0.8;
+    } */
   </style>
   <!-- Zoom Meeting SDK CSS -->
-    <link type="text/css" rel="stylesheet" href="https://source.zoom.us/3.13.1/css/bootstrap.css" />
-    <link type="text/css" rel="stylesheet" href="https://source.zoom.us/3.13.1/css/react-select.css" />
+  <link type="text/css" rel="stylesheet" href="https://source.zoom.us/3.13.1/css/bootstrap.css" />
+  <link type="text/css" rel="stylesheet" href="https://source.zoom.us/3.13.1/css/react-select.css" />
 </head>
 <body>
   <div id="zmmtg-root"></div>
-    <script src="https://source.zoom.us/3.13.1/lib/vendor/react.min.js"></script>
-    <script src="https://source.zoom.us/3.13.1/lib/vendor/react-dom.min.js"></script>
-    <script src="https://source.zoom.us/3.13.1/lib/vendor/redux.min.js"></script>
-    <script src="https://source.zoom.us/3.13.1/lib/vendor/redux-thunk.min.js"></script>
-    <script src="https://source.zoom.us/3.13.1/lib/vendor/lodash.min.js"></script>
-    <script src="https://source.zoom.us/zoom-meeting-3.13.1.min.js"></script>
-  <script>
-
+  
+  <!-- Audio capture controls
+  <div class="audio-controls">
+    <div class="recording-indicator">
+      <div class="recording-dot" id="recording-indicator"></div>
+      <span>Audio</span>
+    </div>
+    <div class="audio-meter">
+      <div class="audio-level" id="audio-level-meter"></div>
+    </div>
+    <button class="audio-button" id="toggle-recording">Start Recording</button>
+    <div class="connection-status" id="connection-status">Not connected</div>
+  </div> -->
+  
+  <script src="https://source.zoom.us/3.13.1/lib/vendor/react.min.js"></script>
+  <script src="https://source.zoom.us/3.13.1/lib/vendor/react-dom.min.js"></script>
+  <script src="https://source.zoom.us/3.13.1/lib/vendor/redux.min.js"></script>
+  <script src="https://source.zoom.us/3.13.1/lib/vendor/redux-thunk.min.js"></script>
+  <script src="https://source.zoom.us/3.13.1/lib/vendor/lodash.min.js"></script>
+  <script src="https://source.zoom.us/zoom-meeting-3.13.1.min.js"></script>
+  
+  <!-- Import our AudioCapture module -->
+  <script type="module">
+    import AudioCapture from './AudioCapture.js';
+    
+    // DOM elements
+    // const toggleButton = document.getElementById('toggle-recording');
+    // const recordingIndicator = document.getElementById('recording-indicator');
+    // const audioLevelMeter = document.getElementById('audio-level-meter');
+    // const connectionStatus = document.getElementById('connection-status');
+    
+    // WebSocket URL for audio streaming
+    // const websocketUrl = "ws://localhost:8000/ws/audio/";
+    
+    // Audio capture instance
+    // let audioCapture = null;
+    
+    // Connection status text mapping
+    // const connectionStates = {
+    //   '-1': 'Not initialized',
+    //   '0': 'Connecting...',
+    //   '1': 'Connected',
+    //   '2': 'Closing...',
+    //   '3': 'Closed'
+    // };
+    
+    
+    // Update UI to match recording state
+    // function updateUIState(isRecording) {
+    //   if (isRecording) {
+    //     toggleButton.textContent = 'Stop Recording';
+    //     toggleButton.classList.add('stop');
+    //     recordingIndicator.classList.add('active');
+    //   } else {
+    //     toggleButton.textContent = 'Start Recording';
+    //     toggleButton.classList.remove('stop');
+    //     recordingIndicator.classList.remove('active');
+    //     audioLevelMeter.style.width = '0%';
+    //   }
+    // }
+    
+    // // Update connection status display
+    // function updateConnectionStatus() {
+    //   if (!audioCapture) {
+    //     connectionStatus.textContent = 'Not initialized';
+    //     return;
+    //   }
+      
+    //   const state = audioCapture.getConnectionState();
+    //   connectionStatus.textContent = connectionStates[state] || 'Unknown';
+    // }
+    
+    // // Initialize audio capture
+    // function initAudioCapture() {
+    //   audioCapture = new AudioCapture(websocketUrl);
+      
+    //   // Set up audio level visualization
+    //   audioCapture.setAudioLevelCallback((level) => {
+    //     audioLevelMeter.style.width = `${level}%`;
+    //   });
+      
+    //   // Update connection status periodically
+    //   setInterval(updateConnectionStatus, 1000);
+      
+    //   // Set up toggle button
+    //   toggleButton.addEventListener('click', toggleRecording);
+    // }
+    
+    // // Toggle recording state
+    // async function toggleRecording() {
+    //   if (!audioCapture) {
+    //     return;
+    //   }
+      
+    //   if (audioCapture.getRecordingState()) {
+    //     audioCapture.stopRecording();
+    //     updateUIState(false);
+    //   } else {
+    //     const success = await audioCapture.startRecording();
+    //     updateUIState(success);
+    //   }
+    // }
+    
     function getQueryParam(param) {
-    const urlParams = new URLSearchParams(window.location.search);
-    return urlParams.get(param);
+      const urlParams = new URLSearchParams(window.location.search);
+      return urlParams.get(param);
     }
+    
     // Replace these with your actual values or pass them via query params
     const sdkKey = "3D5COVRdRCipU9s7JgfS7A";
     const meetingNumber = "82906376883";
@@ -47,6 +216,12 @@
     const role = parseInt(getQueryParam("role") || "0");
     const leaveUrl = "http://localhost:5173";
     
+    // Handle page unload to clean up resources
+    window.addEventListener('beforeunload', () => {
+      if (audioCapture) {
+        audioCapture.disconnect();
+      }
+    });
 
     // Fetch signature from your backend
     fetch('http://localhost:8000/zoom/generate-signature/', {
@@ -74,6 +249,9 @@
             userName: userName,
             success: (success) => {
               console.log(success);
+              window.parent.postMessage({ meetingStarted: true }, "*");
+              // Initialize audio capture after successfully joining the meeting
+              // initAudioCapture();
             },
             error: (error) => {
               console.log(error);

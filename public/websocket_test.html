@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>WebSocket Test</title>
+</head>
+<body>
+  <h1>WebSocket Test</h1>
+  <p>Status: <span id="status">Disconnected</span></p>
+  <p>Messages: <div id="messages"></div></p>
+  <button onclick="sendPing()">Send Ping</button>
+  <script>
+    let ws = null;
+    const statusElement = document.getElementById('status');
+    const messagesElement = document.getElementById('messages');
+
+    function connect() {
+      try {
+        ws = new WebSocket('ws://127.0.0.1:8000/ws/audio/');
+        console.log('Attempting to connect to ws://127.0.0.1:8000/ws/audio/');
+      } catch (error) {
+        console.error('WebSocket initialization error:', error);
+        statusElement.textContent = 'Error';
+        messagesElement.innerHTML += '<p>Error initializing WebSocket</p>';
+        return;
+      }
+
+      ws.onopen = () => {
+        console.log('WebSocket connected');
+        statusElement.textContent = 'Connected';
+        messagesElement.innerHTML += '<p>Connected to server</p>';
+      };
+
+      ws.onmessage = (event) => {
+        console.log('Message received:', event.data);
+        messagesElement.innerHTML += `<p>Received: ${event.data}</p>`;
+      };
+
+      ws.onclose = (event) => {
+        console.log(`WebSocket closed: code=${event.code}, reason=${event.reason}`);
+        statusElement.textContent = 'Disconnected';
+        messagesElement.innerHTML += `<p>Closed: code=${event.code}, reason=${event.reason}</p>`;
+      };
+
+      ws.onerror = (error) => {
+        console.error('WebSocket error:', error, 'readyState:', ws.readyState);
+        statusElement.textContent = 'Error';
+        messagesElement.innerHTML += '<p>Error occurred</p>';
+      };
+    }
+
+    function sendPing() {
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ event: 'ping' }));
+        messagesElement.innerHTML += '<p>Sent ping</p>';
+      } else {
+        messagesElement.innerHTML += '<p>Cannot send: WebSocket not connected</p>';
+      }
+    }
+
+    connect();
+  </script>
+</body>
+</html>
